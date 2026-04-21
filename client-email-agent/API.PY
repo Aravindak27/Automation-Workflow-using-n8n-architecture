@@ -38,25 +38,26 @@ def process_email():
     data = request.json
 
     # --- Validate incoming payload ---
-    required = ["from", "subject", "body"]
+    required = ["tenant_id", "from", "subject", "body"]
     for field in required:
         if field not in data:
             return jsonify({"error": f"Missing field: {field}"}), 400
 
+    tenant_id     = data["tenant_id"]
     email_from    = data["from"]
     email_subject = data["subject"]
     email_body    = data["body"]
     email_id      = data.get("email_id", "unknown")
 
     print(f"\n{'='*50}")
-    print(f"NEW EMAIL RECEIVED")
+    print(f"NEW EMAIL RECEIVED for Tenant: {tenant_id}")
     print(f"From    : {email_from}")
     print(f"Subject : {email_subject}")
     print(f"{'='*50}")
 
     # --- Load client list and match ---
     try:
-        clients = load_clients_from_sheet()
+        clients = load_clients_from_sheet(tenant_id)
     except Exception as e:
         return jsonify({"error": f"Failed to load client list: {str(e)}"}), 500
 
@@ -114,7 +115,7 @@ Email Body:
 
     # --- Log to Database ---
     is_important = parsed.get("priority_score", 0) >= 7 or parsed.get("classification", {}).get("urgency", "").lower() in ["high", "critical", "urgent"]
-    log_email(matched_client["name"], is_important, email_subject)
+    log_email(tenant_id, matched_client["name"], is_important, email_subject)
 
     # --- Build Telegram Message ---
     pleasant_note = random.choice(PLEASANT_NOTES)
@@ -154,9 +155,9 @@ Email Body:
     return jsonify(result), 200
 
 
-@app.route("/weekly-report", methods=["GET", "POST"])
-def weekly_report():
-    stats = get_weekly_stats()
+@app.route("/weekly-report/<tenant_id>", methods=["GET", "POST"])
+def weekly_report(tenant_id):
+    stats = get_weekly_stats(tenant_id)
     telegram_text = (
         f"📊 <b>Weekly Email Automation Report</b>\n"
         f"<i>{stats['start_date']} - {stats['end_date']}</i>\n\n"

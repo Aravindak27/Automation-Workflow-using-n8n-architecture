@@ -4,7 +4,8 @@ import io
 import urllib.request
 
 
-def load_clients_from_sheet(sheet_id):
+def load_clients_from_sheet(tenant_email):
+    sheet_id = os.getenv("GOOGLE_SHEET_ID")
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=clients"
 
     with urllib.request.urlopen(url) as response:
@@ -16,8 +17,15 @@ def load_clients_from_sheet(sheet_id):
 
     clients = []
     for row in reader:
+        row_user_mail = row.get("user_mail", "").strip().lower()
+        if row_user_mail != tenant_email.lower():
+            continue
+            
         clients.append({
-            "client_id":  row["client_id"].strip(),
+            "client_id":  row.get("client_id", "").strip(),
+            "user_name":  row.get("user_name", "").strip(),
+            "user_id":    row.get("user_id", "").strip(),
+            "user_mail":  row_user_mail,
             "name":       row["name"].strip(),
             "priority":   row["priority"].strip().lower(),
             "domains":    [d.strip() for d in row["domains"].split(",")],
