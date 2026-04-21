@@ -4,8 +4,7 @@ import io
 import urllib.request
 
 
-def load_clients_from_sheet():
-    sheet_id = os.getenv("GOOGLE_SHEET_ID")
+def load_clients_from_sheet(sheet_id):
     url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/gviz/tq?tqx=out:csv&sheet=clients"
 
     with urllib.request.urlopen(url) as response:

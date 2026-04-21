@@ -6,6 +6,21 @@ from flask import Flask, request, jsonify
 from groq import Groq
 from agent import client_email_agent
 from sheets import load_clients_from_sheet, match_client
+from db import log_email, get_weekly_stats
+import random
+
+PLEASANT_NOTES = [
+    "Make it a great day!",
+    "Wishing you successfully resolved tickets!",
+    "Keep up the excellent work!",
+    "Have a productive and successful day!",
+    "Hoping your week is off to a wonderful start!",
+    "Stay awesome and focused!",
+    "Wishing you a week full of achievements!",
+    "May your day be as smooth as this automation!",
+    "Here's to a great day ahead!"
+]
+
 
 load_dotenv()
 
@@ -50,13 +65,13 @@ def process_email():
     )
 
     if not matched_client:
-        print("⚠️  Not a client email — ignored.")
+        print("Not a client email — ignored.")
         return jsonify({
             "matched": False,
             "message": "Sender not in client list. Email ignored."
         }), 200
 
-    print(f"✅ Matched: {matched_client['name']} ({matched_client['priority']})")
+    print(f"Matched: {matched_client['name']} ({matched_client['priority']})")
 
     # --- Build prompt and call AI agent ---
     user_message = f"""
@@ -97,6 +112,22 @@ Email Body:
     except Exception as e:
         return jsonify({"error": f"AI agent failed: {str(e)}"}), 500
 
+    # --- Log to Database ---
+    is_important = parsed.get("priority_score", 0) >= 7 or parsed.get("classification", {}).get("urgency", "").lower() in ["high", "critical", "urgent"]
+    log_email(matched_client["name"], is_important, email_subject)
+
+    # --- Build Telegram Message ---
+    pleasant_note = random.choice(PLEASANT_NOTES)
+    telegram_text = (
+        f"📩 <b>New Client Email Alert</b>\n\n"
+        f"<b>Client:</b> {matched_client['name']}\n"
+        f"<b>Subject:</b> {email_subject}\n"
+        f"<b>Priority Score:</b> {parsed['priority_score']}/10\n"
+        f"<b>Urgency:</b> {parsed['classification']['urgency'].upper()}\n\n"
+        f"<b>Summary:</b> {parsed['classification']['summary']}\n\n"
+        f"<i>{pleasant_note}</i>"
+    )
+
     # --- Build final response for n8n ---
     result = {
         "matched": True,
@@ -112,16 +143,33 @@ Email Body:
         "priority_score": parsed["priority_score"],
         "priority_reason": parsed["priority_reason"],
         "draft_reply":    parsed["draft_reply"],
-        "sla_deadline":   f"Reply within {matched_client['sla_hours']} hours"
+        "sla_deadline":   f"Reply within {matched_client['sla_hours']} hours",
+        "telegram_message": telegram_text
     }
 
     print(f"Priority Score : {parsed['priority_score']}/10")
     print(f"Urgency        : {parsed['classification']['urgency'].upper()}")
-    print(f"Draft ready    : ✅")
+    print(f"Draft ready    : [DONE]")
 
     return jsonify(result), 200
 
 
+@app.route("/weekly-report", methods=["GET", "POST"])
+def weekly_report():
+    stats = get_weekly_stats()
+    telegram_text = (
+        f"📊 <b>Weekly Email Automation Report</b>\n"
+        f"<i>{stats['start_date']} - {stats['end_date']}</i>\n\n"
+        f"<b>Total Emails Processed:</b> {stats['total_emails']}\n"
+        f"<b>Important Emails Alerted:</b> {stats['important_emails']}\n\n"
+        f"<i>Ready for another great week!</i>"
+    )
+    return jsonify({
+        "stats": stats,
+        "telegram_message": telegram_text
+    }), 200
+
+
 if __name__ == "__main__":
-    print("🚀 Client Email Intelligence API running on http://localhost:5000")
+    print("Client Email Intelligence API running on http://localhost:5000")
     app.run(debug=True, port=5000)
