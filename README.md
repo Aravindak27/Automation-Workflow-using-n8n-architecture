@@ -63,9 +63,10 @@ In your **n8n HTTP Request node**:
 - **Body Content** (JSON Example):
   ```json
   {
-    "from": "{{ $json.from.address }}",
+    "tenant_id": "aravind2005ak@gmail.com",
+    "from": "{{ $json.from }}",
     "subject": "{{ $json.subject }}",
-    "body": "{{ $json.text }}"
+    "body": "{{ $json.textPlain }}"
   }
   ```
 

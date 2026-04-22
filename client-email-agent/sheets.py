@@ -42,22 +42,32 @@ def match_client(email_from, email_subject, email_body, clients):
     subject_lower     = email_subject.lower()
     body_lower        = email_body.lower()
 
+    # PASS 1: Explicit Email Address Match (Highest Priority)
+    for client in clients:
+        email_match = any(
+            e.strip().lower() in email_from_lower
+            for e in client["emails"] if e.strip()
+        )
+        if email_match:
+            keyword_hit = next(
+                (k for k in client["keywords"]
+                 if k.strip() and (k.lower() in subject_lower or k.lower() in body_lower)),
+                None
+            )
+            return client, keyword_hit
+
+    # PASS 2: Domain Match Fallback
     for client in clients:
         domain_match = any(
-            d.lower() in email_from_lower
-            for d in client["domains"]
+            d.strip().lower() in email_from_lower
+            for d in client["domains"] if d.strip()
         )
-        email_match = any(
-            e.lower() == email_from_lower
-            for e in client["emails"]
-        )
-        keyword_hit = next(
-            (k for k in client["keywords"]
-             if k.lower() in subject_lower or k.lower() in body_lower),
-            None
-        )
-
-        if domain_match or email_match:
+        if domain_match:
+            keyword_hit = next(
+                (k for k in client["keywords"]
+                 if k.strip() and (k.lower() in subject_lower or k.lower() in body_lower)),
+                None
+            )
             return client, keyword_hit
 
     return None, None

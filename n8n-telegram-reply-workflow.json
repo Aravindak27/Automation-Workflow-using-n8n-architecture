@@ -1,0 +1,64 @@
+{
+  "name": "Auto-Responder Telegram Extension",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": ["message"]
+      },
+      "id": "1",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const msg = $input.first().json.message;\nif (!msg || !msg.reply_to_message) {\n  // Ignore messages that are not replies to the bot\n  return [];\n}\n\nconst replyText = msg.reply_to_message.text || \"\";\n\n// Extract the hidden tagging\nconst tagMatch = replyText.match(/\\[MSG:(.*?)\\|TO:(.*?)\\]/);\nif (!tagMatch) {\n  return [];\n}\n\nconst email_id = tagMatch[1];\nconst to_address = tagMatch[2];\n\nconst userText = (msg.text || \"\").trim();\nlet emailBody = userText;\n\n// If the user simply types 'send', extract the AI draft to send instead\nif (userText.toLowerCase() === 'send' || userText.toLowerCase() === 'approve') {\n    // Draft is sandwiched between \"Suggested Reply:\" and the pleasant signature/tags\n    const parts = replyText.split(\"Suggested Reply:\");\n    if (parts.length > 1) {\n        let draft_section = parts[1].split(\"Wishing you\")[0].split(\"Make it\")[0].split(\"Keep up\")[0].split(\"Have a\")[0].split(\"Here's\")[0].split(\"Stay\")[0].split(\"[MSG:\")[0];\n        emailBody = draft_section.trim();\n    }\n}\n\nreturn {\n  json: {\n    n8n_thread_id: email_id,\n    client_email: to_address,\n    final_body_to_send: emailBody\n  }\n};"
+      },
+      "id": "2",
+      "name": "Extract Draft & Tags",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $json.client_email }}",
+        "subject": "Re: Support Request",
+        "message": "={{ $json.final_body_to_send }}",
+        "appendAttribution": false
+      },
+      "id": "3",
+      "name": "Reply To Client Via Gmail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "Extract Draft & Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Draft & Tags": {
+      "main": [
+        [
+          {
+            "node": "Reply To Client Via Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

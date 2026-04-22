@@ -8,3 +8,9 @@ __pycache__/
 env/
 venv/
 .venv/
+
+# Databases & Logs
+*.db
+*.sqlite
+*.sqlite3
+*.log

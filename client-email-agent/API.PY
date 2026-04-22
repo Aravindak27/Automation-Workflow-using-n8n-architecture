@@ -118,15 +118,27 @@ Email Body:
     log_email(tenant_id, matched_client["name"], is_important, email_subject)
 
     # --- Build Telegram Message ---
+    import html
     pleasant_note = random.choice(PLEASANT_NOTES)
+    
+    # HTML-escape fields so Telegram doesn't mistake email headers like <email@gmail.com> for HTML tags!
+    safe_name = html.escape(matched_client['name'])
+    safe_subject = html.escape(email_subject)
+    safe_from = html.escape(email_from)
+    safe_draft = html.escape(parsed['draft_reply'])
+    safe_summary = html.escape(parsed['classification']['summary'])
+    
     telegram_text = (
         f"📩 <b>New Client Email Alert</b>\n\n"
-        f"<b>Client:</b> {matched_client['name']}\n"
-        f"<b>Subject:</b> {email_subject}\n"
+        f"<b>Client:</b> {safe_name}\n"
+        f"<b>Subject:</b> {safe_subject}\n"
         f"<b>Priority Score:</b> {parsed['priority_score']}/10\n"
         f"<b>Urgency:</b> {parsed['classification']['urgency'].upper()}\n\n"
-        f"<b>Summary:</b> {parsed['classification']['summary']}\n\n"
-        f"<i>{pleasant_note}</i>"
+        f"<b>Summary:</b> {safe_summary}\n\n"
+        f"<b>🤖 Suggested Reply:</b>\n"
+        f"<i>{safe_draft}</i>\n\n"
+        f"<i>{pleasant_note}</i>\n"
+        f"<pre><code class=\"language-n8n\">[MSG:{email_id}|TO:{safe_from}]</code></pre>"
     )
 
     # --- Build final response for n8n ---
