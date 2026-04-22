@@ -1,3 +1,12 @@
+---
+title: Email API
+emoji: 🤖
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
+
 # Automation Workflow using n8n and AI Agent
 
 This repository contains an automated email classification and processing workflow. It uses **n8n** for orchestrating the workflow (reading incoming emails, handling responses) and a **Flask-based Python API** integrated with Groq Cloud for AI email processing (reading intent, fetching matching client SLA priority from Google Sheets, drafting an email response).
